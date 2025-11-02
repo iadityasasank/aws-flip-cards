@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AWS Flip Cards - Study Tool</title>
+    <link rel="stylesheet" href="flipcard-style.css">
+    <style>
+        .section-selector {
+            text-align: center;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        .section-selector select {
+            padding: 12px 20px;
+            font-size: 1.1em;
+            border-radius: 25px;
+            border: none;
+            background: white;
+            color: #667eea;
+            font-weight: bold;
+            cursor: pointer;
+            min-width: 300px;
+        }
+        .section-selector label {
+            color: white;
+            font-size: 1.2em;
+            margin-right: 15px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>AWS Study Flip Cards</h1>
+            <p>Select a section to study key concepts and questions</p>
+        </div>
+
+        <div class="section-selector">
+            <label for="sectionSelect">Select Section:</label>
+            <select id="sectionSelect">
+                <option value="">-- Choose a section --</option>
+                <option value="getting-started-aws/data.csv">Getting Started with AWS</option>
+                <option value="iam-aws-cli/data.csv">IAM & AWS CLI</option>
+                <option value="ec2-fundamentals/data.csv">EC2 Fundamentals</option>
+                <option value="ec2-solution-architect/data.csv">EC2 Solution Architect Associate Level</option>
+            </select>
+        </div>
+
+        <div class="stats" id="statsContainer" style="display: none;">
+            <div class="stat-item">Total Cards: <span id="totalCards">0</span></div>
+            <div class="stat-item">Flipped: <span id="flippedCards">0</span></div>
+            <div class="stat-item">Remaining: <span id="remainingCards">0</span></div>
+        </div>
+
+        <div class="controls" id="controlsContainer" style="display: none;">
+            <button class="btn" id="prevBtn">← Previous</button>
+            <button class="btn" id="nextBtn">Next →</button>
+            <button class="btn" id="resetBtn">Reset All</button>
+            <button class="btn" id="flipAllBtn">Flip All</button>
+        </div>
+
+        <div class="flip-card-container" id="flipCardContainer">
+            <div style="text-align: center; color: white; padding: 50px; font-size: 1.2em;">
+                Please select a section from the dropdown above to load flip cards.
+            </div>
+        </div>
+
+        <div class="footer" id="footerContainer" style="display: none;">
+            <p><strong>Keyboard Shortcuts:</strong> Arrow Keys (Navigate) | Space (Flip) | R (Reset) | F (Flip All)</p>
+            <p>Click on any card to flip it and reveal the answer or question</p>
+        </div>
+    </div>
+
+    <script src="flipcard-script.js"></script>
+    <script>
+        // CSV Parser and Flip Card Generator
+        function parseCSV(csvText) {
+            const lines = csvText.trim().split(/\r?\n/);
+            if (lines.length < 2) return [];
+            
+            // Parse headers
+            const headers = parseCSVLine(lines[0]);
+            const data = [];
+            
+            // Parse data rows
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i].trim()) continue; // Skip empty lines
+                
+                const values = parseCSVLine(lines[i]);
+                
+                if (values.length === headers.length) {
+                    const obj = {};
+                    headers.forEach((header, index) => {
+                        obj[header.trim()] = values[index] ? values[index].trim() : '';
+                    });
+                    data.push(obj);
+                }
+            }
+            
+            return data;
+        }
+        
+        function parseCSVLine(line) {
+            const values = [];
+            let current = '';
+            let inQuotes = false;
+            
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                const nextChar = line[i + 1];
+                
+                if (char === '"') {
+                    if (inQuotes && nextChar === '"') {
+                        // Escaped quote
+                        current += '"';
+                        i++; // Skip next quote
+                    } else {
+                        // Toggle quote state
+                        inQuotes = !inQuotes;
+                    }
+                } else if (char === ',' && !inQuotes) {
+                    // Field separator
+                    values.push(current);
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            
+            // Add last field
+            values.push(current);
+            
+            return values;
+        }
+
+        function generateFlipCards(cardData, title) {
+            const container = document.getElementById('flipCardContainer');
+            container.innerHTML = '';
+            
+            cardData.forEach((card, index) => {
+                const flipCard = document.createElement('div');
+                flipCard.className = 'flip-card';
+                flipCard.innerHTML = `
+                    <div class="flip-card-inner">
+                        <div class="flip-card-front">
+                            <span class="card-type">Question</span>
+                            <span class="card-number">${card.Number || (index + 1)}/${cardData.length}</span>
+                            <div class="card-content">${escapeHtml(card.Back)}</div>
+                        </div>
+                        <div class="flip-card-back">
+                            <div class="card-title">${card.Type || 'Key Point'}</div>
+                            <div class="card-content">${escapeHtml(card.Front)}</div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(flipCard);
+            });
+            
+            // Update header with section title
+            document.querySelector('.header h1').textContent = title || 'AWS Study Flip Cards';
+            
+            // Show stats, controls, and footer
+            document.getElementById('statsContainer').style.display = 'flex';
+            document.getElementById('controlsContainer').style.display = 'block';
+            document.getElementById('footerContainer').style.display = 'block';
+            
+            // Reinitialize flip card functionality
+            initializeFlipCards();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML.replace(/\n/g, '<br>');
+        }
+
+        function loadCSV(sectionPath) {
+            const container = document.getElementById('flipCardContainer');
+            
+            // Show loading message
+            container.innerHTML = '<div style="text-align: center; color: white; padding: 50px; font-size: 1.2em;">Loading flip cards...</div>';
+            
+            fetch(sectionPath)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(csvText => {
+                    if (!csvText || csvText.trim().length === 0) {
+                        throw new Error('CSV file is empty');
+                    }
+                    
+                    const data = parseCSV(csvText);
+                    
+                    if (data.length === 0) {
+                        throw new Error('No cards found in CSV file');
+                    }
+                    
+                    const sectionName = document.querySelector(`#sectionSelect option[value="${sectionPath}"]`).textContent;
+                    generateFlipCards(data, sectionName);
+                })
+                .catch(error => {
+                    console.error('Error loading CSV:', error);
+                    console.error('Attempted to load:', sectionPath);
+                    
+                    let errorMessage = 'Error loading flip cards. ';
+                    if (error.message.includes('HTTP error')) {
+                        errorMessage += `File not found or server error. Please check that the file exists at: ${sectionPath}`;
+                    } else if (error.message.includes('empty')) {
+                        errorMessage += 'The CSV file is empty.';
+                    } else if (error.message.includes('No cards')) {
+                        errorMessage += 'No valid cards found in the CSV file.';
+                    } else {
+                        errorMessage += `Error: ${error.message}`;
+                    }
+                    
+                    container.innerHTML = `<div style="text-align: center; color: white; padding: 50px; font-size: 1.2em;">
+                        ${errorMessage}<br><br>
+                        <small style="opacity: 0.8;">Check the browser console (F12) for more details.</small>
+                    </div>`;
+                    
+                    // Hide stats and controls on error
+                    document.getElementById('statsContainer').style.display = 'none';
+                    document.getElementById('controlsContainer').style.display = 'none';
+                    document.getElementById('footerContainer').style.display = 'none';
+                });
+        }
+
+        // Section selector event
+        document.getElementById('sectionSelect').addEventListener('change', function(e) {
+            if (e.target.value) {
+                loadCSV(e.target.value);
+            } else {
+                document.getElementById('flipCardContainer').innerHTML = 
+                    '<div style="text-align: center; color: white; padding: 50px; font-size: 1.2em;">Please select a section from the dropdown above to load flip cards.</div>';
+                document.getElementById('statsContainer').style.display = 'none';
+                document.getElementById('controlsContainer').style.display = 'none';
+                document.getElementById('footerContainer').style.display = 'none';
+            }
+        });
+
+        // Check URL parameter for section
+        const urlParams = new URLSearchParams(window.location.search);
+        const sectionParam = urlParams.get('section');
+        if (sectionParam) {
+            document.getElementById('sectionSelect').value = sectionParam;
+            loadCSV(sectionParam);
+        }
+
+        // Initialize flip cards (will be called after cards are generated)
+        function initializeFlipCards() {
+            const flipCards = document.querySelectorAll('.flip-card');
+            let currentCardIndex = 0;
+            let flippedCards = new Set();
+
+            // Remove existing event listeners by cloning nodes
+            flipCards.forEach((card, index) => {
+                card.addEventListener('click', function() {
+                    card.classList.toggle('flipped');
+                    if (card.classList.contains('flipped')) {
+                        flippedCards.add(index);
+                    } else {
+                        flippedCards.delete(index);
+                    }
+                    updateStats();
+                });
+            });
+
+            // Update stats function
+            function updateStats() {
+                const totalCards = flipCards.length;
+                const flippedCount = flippedCards.size;
+                const remainingCount = totalCards - flippedCount;
+                
+                document.getElementById('totalCards').textContent = totalCards;
+                document.getElementById('flippedCards').textContent = flippedCount;
+                document.getElementById('remainingCards').textContent = remainingCount;
+            }
+
+            // Navigation functions
+            function goToNext() {
+                if (flipCards.length === 0) return;
+                flipCards[currentCardIndex].classList.remove('flipped');
+                currentCardIndex = (currentCardIndex + 1) % flipCards.length;
+                flipCards[currentCardIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                updateStats();
+            }
+
+            function goToPrevious() {
+                if (flipCards.length === 0) return;
+                flipCards[currentCardIndex].classList.remove('flipped');
+                currentCardIndex = (currentCardIndex - 1 + flipCards.length) % flipCards.length;
+                flipCards[currentCardIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                updateStats();
+            }
+
+            function resetAll() {
+                flipCards.forEach(card => card.classList.remove('flipped'));
+                flippedCards.clear();
+                currentCardIndex = 0;
+                updateStats();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+
+            function flipAll() {
+                flipCards.forEach((card, index) => {
+                    card.classList.add('flipped');
+                    flippedCards.add(index);
+                });
+                updateStats();
+            }
+
+            // Button event listeners
+            document.getElementById('nextBtn').onclick = goToNext;
+            document.getElementById('prevBtn').onclick = goToPrevious;
+            document.getElementById('resetBtn').onclick = resetAll;
+            document.getElementById('flipAllBtn').onclick = flipAll;
+
+            // Keyboard navigation (remove old listeners first)
+            const keyboardHandler = function(e) {
+                if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                    goToNext();
+                } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                    goToPrevious();
+                } else if (e.key === ' ') {
+                    e.preventDefault();
+                    if (flipCards[currentCardIndex]) {
+                        flipCards[currentCardIndex].classList.toggle('flipped');
+                        const index = currentCardIndex;
+                        if (flipCards[index].classList.contains('flipped')) {
+                            flippedCards.add(index);
+                        } else {
+                            flippedCards.delete(index);
+                        }
+                        updateStats();
+                    }
+                } else if (e.key === 'r' || e.key === 'R') {
+                    resetAll();
+                } else if (e.key === 'f' || e.key === 'F') {
+                    flipAll();
+                }
+            };
+
+            // Remove existing keyboard listener if any
+            document.removeEventListener('keydown', window.currentKeyboardHandler);
+            window.currentKeyboardHandler = keyboardHandler;
+            document.addEventListener('keydown', keyboardHandler);
+
+            // Initial stats update
+            updateStats();
+        }
+    </script>
+</body>
+</html>
+
