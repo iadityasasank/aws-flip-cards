@@ -1,35 +1,35 @@
-# AWS Flip Cards Study Tool 🎴
+# AWS MCQ Study Tool 📝
 
-Interactive flip card study tool for AWS certification preparation. This system uses CSV files to store questions and answers, allowing you to easily edit content using Excel, Google Sheets, or any text editor.
+Interactive multiple choice question (MCQ) study tool for AWS certification preparation. This system uses CSV files to store questions, options, and answers, allowing you to easily edit content using Excel, Google Sheets, or any text editor.
 
 ## Features ✨
 
-- 📚 **120+ Flip Cards** across 4 AWS topics
+- 📚 **120+ MCQs** across 4 AWS topics
 - 📝 **CSV-based Content** - Easy to edit in Excel/Sheets
-- 🎨 **Beautiful UI** - Modern, responsive design with smooth animations
-- ⌨️ **Keyboard Shortcuts** - Efficient navigation and interaction
-- 📊 **Progress Tracking** - Monitor your study progress
+- 🎨 **Beautiful UI** - Modern, responsive design
+- 📊 **Scoreboard** - Track correct/incorrect answers and score percentage
+- 🔍 **Review Section** - Review all incorrect answers with explanations
+- ⌨️ **Keyboard Navigation** - Efficient navigation with arrow keys
 - 🌐 **Single HTML Template** - One file loads all sections dynamically
 
 ## Overview
-Interactive flip card study tool for AWS certification preparation. This system uses CSV files to store questions and answers, allowing you to easily edit content using Excel, Google Sheets, or any text editor.
+Interactive multiple choice question (MCQ) study tool for AWS certification preparation. This system uses CSV files to store questions, multiple choice options, and answers, allowing you to easily edit content using Excel, Google Sheets, or any text editor.
 
 ## File Structure
 
 ```
 flip-cards/
-├── index.html              # Main entry point - loads any section dynamically
-├── flipcard-style.css      # Styling for flip cards
-├── flipcard-script.js      # Flip card functionality (for standalone pages)
+├── index.html              # Main entry point - MCQ interface
+├── mcq-style.css           # Styling for MCQ interface
 ├── README.md              # This file
 ├── getting-started-aws/
-│   └── data.csv           # 30 flip cards for Getting Started with AWS
+│   └── mcq-data.csv       # 30 MCQs for Getting Started with AWS
 ├── iam-aws-cli/
-│   └── data.csv           # 30 flip cards for IAM & AWS CLI
+│   └── mcq-data.csv       # 30 MCQs for IAM & AWS CLI
 ├── ec2-fundamentals/
-│   └── data.csv           # 30 flip cards for EC2 Fundamentals
+│   └── mcq-data.csv       # 30 MCQs for EC2 Fundamentals
 └── ec2-solution-architect/
-    └── data.csv           # 30 flip cards for EC2 Solution Architect Associate Level
+    └── mcq-data.csv       # 30 MCQs for EC2 Solution Architect Associate Level
 ```
 
 ## How to Use
@@ -64,40 +64,49 @@ If you use VS Code:
 1. Start a local web server (see options above)
 2. Open `index.html` in your web browser
 3. Select a section from the dropdown menu
-4. Start studying with the interactive flip cards
+4. Answer the multiple choice questions
+5. Track your score and review incorrect answers
 
 ### Method 2: Direct URL
 You can also load a specific section directly using URL parameters:
 ```
-http://localhost:8000/index.html?section=getting-started-aws/data.csv
-http://localhost:8000/index.html?section=iam-aws-cli/data.csv
-http://localhost:8000/index.html?section=ec2-fundamentals/data.csv
-http://localhost:8000/index.html?section=ec2-solution-architect/data.csv
+http://localhost:8000/index.html?section=getting-started-aws/mcq-data.csv
+http://localhost:8000/index.html?section=iam-aws-cli/mcq-data.csv
+http://localhost:8000/index.html?section=ec2-fundamentals/mcq-data.csv
+http://localhost:8000/index.html?section=ec2-solution-architect/mcq-data.csv
 ```
 
 ## Features
 
-### Interactive Flip Cards
-- Click any card to flip it and reveal the answer/question
-- Beautiful gradient design with smooth animations
-- Responsive layout that works on desktop and mobile
+### Multiple Choice Questions
+- Select an answer from 4 options (A, B, C, D)
+- Immediate feedback on correct/incorrect answers
+- Color-coded options (green for correct, red for incorrect)
+- Beautiful, responsive design that works on desktop and mobile
+
+### Scoreboard
+- **Total Questions**: Number of questions in the section
+- **Correct**: Count of correct answers
+- **Incorrect**: Count of incorrect answers
+- **Score**: Percentage of correct answers
+- **Progress Bar**: Visual representation of completion
+
+### Review Section
+- Click "Review Wrong Answers" to see all incorrect responses
+- Shows your answer vs. correct answer
+- Includes explanations for each question
+- Helps identify areas that need more study
 
 ### Navigation
-- **Previous/Next Buttons**: Navigate between cards
+- **Previous/Next Buttons**: Navigate between questions
 - **Keyboard Shortcuts**:
-  - `Arrow Keys` (←/→ or ↑/↓): Navigate between cards
-  - `Space`: Flip current card
-  - `R`: Reset all cards (unflip everything)
-  - `F`: Flip all cards at once
-
-### Statistics
-- Track total cards in the section
-- Monitor how many cards you've flipped
-- See remaining cards to study
+  - `Arrow Keys` (←/→ or ↑/↓): Navigate between questions
+- **Reset Quiz**: Start over and clear all answers
 
 ### Controls
-- **Reset All**: Unflip all cards and return to the beginning
-- **Flip All**: Flip all cards at once to review everything
+- **Submit Answer**: Check your selected answer
+- **Reset Quiz**: Clear all answers and start fresh
+- **Review Wrong Answers**: View all incorrect answers with explanations
 
 ## CSV File Format
 
@@ -111,10 +120,13 @@ Key Point,2,"Another front content","Another question or answer"
 
 ### CSV Columns Explained
 
-1. **Type**: The type of card (e.g., "Key Point", "Question", "Concept")
-2. **Number**: Card number within the section
-3. **Front**: Content shown on the front of the card (concept/definition)
-4. **Back**: Content shown on the back of the card (question/answer)
+1. **Question**: The multiple choice question text
+2. **OptionA**: First answer option (typically incorrect)
+3. **OptionB**: Second answer option (typically the correct answer)
+4. **OptionC**: Third answer option (typically incorrect)
+5. **OptionD**: Fourth answer option (typically incorrect)
+6. **CorrectAnswer**: The correct option (A, B, C, or D)
+7. **Explanation**: Detailed explanation of the correct answer
 
 ### Important Notes for CSV Files
 
@@ -149,10 +161,10 @@ To add more cards to a section:
 4. Save the file
 5. Refresh your browser
 
-### Example of Adding a Card
+### Example of Adding a Question
 
 ```csv
-Key Point,31,"New concept to learn","New question to answer"
+"What is AWS Lambda?","A database service","A serverless compute service that runs code in response to events","A storage service","A networking service","B","AWS Lambda is a serverless compute service that runs code in response to events without provisioning or managing servers."
 ```
 
 ## Sections Included

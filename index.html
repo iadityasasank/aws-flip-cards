@@ -3,93 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AWS Flip Cards - Study Tool</title>
-    <link rel="stylesheet" href="flipcard-style.css">
-    <style>
-        .section-selector {
-            text-align: center;
-            margin-bottom: 30px;
-            background: rgba(255, 255, 255, 0.1);
-            padding: 20px;
-            border-radius: 15px;
-            backdrop-filter: blur(10px);
-        }
-        .section-selector select {
-            padding: 12px 20px;
-            font-size: 1.1em;
-            border-radius: 25px;
-            border: none;
-            background: white;
-            color: #667eea;
-            font-weight: bold;
-            cursor: pointer;
-            min-width: 300px;
-        }
-        .section-selector label {
-            color: white;
-            font-size: 1.2em;
-            margin-right: 15px;
-            font-weight: bold;
-        }
-    </style>
+    <title>AWS MCQ Study Tool</title>
+    <link rel="stylesheet" href="mcq-style.css">
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>AWS Study Flip Cards</h1>
-            <p>Select a section to study key concepts and questions</p>
+            <h1>AWS MCQ Study Tool</h1>
+            <p>Test your knowledge with multiple choice questions</p>
         </div>
 
         <div class="section-selector">
             <label for="sectionSelect">Select Section:</label>
             <select id="sectionSelect">
                 <option value="">-- Choose a section --</option>
-                <option value="getting-started-aws/data.csv">Getting Started with AWS</option>
-                <option value="iam-aws-cli/data.csv">IAM & AWS CLI</option>
-                <option value="ec2-fundamentals/data.csv">EC2 Fundamentals</option>
-                <option value="ec2-solution-architect/data.csv">EC2 Solution Architect Associate Level</option>
+                <option value="getting-started-aws/mcq-data.csv">Getting Started with AWS</option>
+                <option value="iam-aws-cli/mcq-data.csv">IAM & AWS CLI</option>
+                <option value="ec2-fundamentals/mcq-data.csv">EC2 Fundamentals</option>
+                <option value="ec2-solution-architect/mcq-data.csv">EC2 Solution Architect Associate Level</option>
             </select>
         </div>
 
-        <div class="stats" id="statsContainer" style="display: none;">
-            <div class="stat-item">Total Cards: <span id="totalCards">0</span></div>
-            <div class="stat-item">Flipped: <span id="flippedCards">0</span></div>
-            <div class="stat-item">Remaining: <span id="remainingCards">0</span></div>
-        </div>
-
-        <div class="controls" id="controlsContainer" style="display: none;">
-            <button class="btn" id="prevBtn">← Previous</button>
-            <button class="btn" id="nextBtn">Next →</button>
-            <button class="btn" id="resetBtn">Reset All</button>
-            <button class="btn" id="flipAllBtn">Flip All</button>
-        </div>
-
-        <div class="flip-card-container" id="flipCardContainer">
-            <div style="text-align: center; color: white; padding: 50px; font-size: 1.2em;">
-                Please select a section from the dropdown above to load flip cards.
+        <div id="scoreboardContainer" style="display: none;">
+            <div class="stats">
+                <div class="stat-item">Total Questions: <span id="totalQuestions">0</span></div>
+                <div class="stat-item" style="background: rgba(40, 167, 69, 0.3);">Correct: <span id="correctCount">0</span></div>
+                <div class="stat-item" style="background: rgba(220, 53, 69, 0.3);">Incorrect: <span id="incorrectCount">0</span></div>
+                <div class="stat-item">Score: <span id="scorePercentage">0%</span></div>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%;">0%</div>
             </div>
         </div>
 
+        <div class="controls" id="controlsContainer" style="display: none;">
+            <button class="btn btn-secondary" id="resetBtn">Reset Quiz</button>
+            <button class="btn btn-success" id="reviewBtn" style="display: none;">Review Wrong Answers</button>
+            <button class="btn" id="nextBtn">Next Question →</button>
+        </div>
+
+        <div class="mcq-container" id="mcqContainer">
+            <div style="text-align: center; color: white; padding: 50px; font-size: 1.2em;">
+                Please select a section from the dropdown above to start the quiz.
+            </div>
+        </div>
+
+        <div id="reviewContainer" style="display: none;">
+            <div class="header">
+                <h2>Review: Incorrect Answers</h2>
+            </div>
+            <div class="mcq-container" id="reviewQuestions"></div>
+        </div>
+
         <div class="footer" id="footerContainer" style="display: none;">
-            <p><strong>Keyboard Shortcuts:</strong> Arrow Keys (Navigate) | Space (Flip) | R (Reset) | F (Flip All)</p>
-            <p>Click on any card to flip it and reveal the answer or question</p>
+            <p><strong>Instructions:</strong> Select an answer and click "Submit Answer" to check your response</p>
+            <p>Your score and incorrect answers will be tracked automatically</p>
         </div>
     </div>
 
-    <script src="flipcard-script.js"></script>
     <script>
-        // CSV Parser and Flip Card Generator
+        let currentQuestions = [];
+        let currentQuestionIndex = 0;
+        let userAnswers = {};
+        let correctAnswers = {};
+        let wrongAnswers = [];
+
+        // CSV Parser
         function parseCSV(csvText) {
             const lines = csvText.trim().split(/\r?\n/);
             if (lines.length < 2) return [];
             
-            // Parse headers
             const headers = parseCSVLine(lines[0]);
             const data = [];
             
-            // Parse data rows
             for (let i = 1; i < lines.length; i++) {
-                if (!lines[i].trim()) continue; // Skip empty lines
+                if (!lines[i].trim()) continue;
                 
                 const values = parseCSVLine(lines[i]);
                 
@@ -116,15 +104,12 @@
                 
                 if (char === '"') {
                     if (inQuotes && nextChar === '"') {
-                        // Escaped quote
                         current += '"';
-                        i++; // Skip next quote
+                        i++;
                     } else {
-                        // Toggle quote state
                         inQuotes = !inQuotes;
                     }
                 } else if (char === ',' && !inQuotes) {
-                    // Field separator
                     values.push(current);
                     current = '';
                 } else {
@@ -132,45 +117,8 @@
                 }
             }
             
-            // Add last field
             values.push(current);
-            
             return values;
-        }
-
-        function generateFlipCards(cardData, title) {
-            const container = document.getElementById('flipCardContainer');
-            container.innerHTML = '';
-            
-            cardData.forEach((card, index) => {
-                const flipCard = document.createElement('div');
-                flipCard.className = 'flip-card';
-                flipCard.innerHTML = `
-                    <div class="flip-card-inner">
-                        <div class="flip-card-front">
-                            <span class="card-type">Question</span>
-                            <span class="card-number">${card.Number || (index + 1)}/${cardData.length}</span>
-                            <div class="card-content">${escapeHtml(card.Back)}</div>
-                        </div>
-                        <div class="flip-card-back">
-                            <div class="card-title">${card.Type || 'Key Point'}</div>
-                            <div class="card-content">${escapeHtml(card.Front)}</div>
-                        </div>
-                    </div>
-                `;
-                container.appendChild(flipCard);
-            });
-            
-            // Update header with section title
-            document.querySelector('.header h1').textContent = title || 'AWS Study Flip Cards';
-            
-            // Show stats, controls, and footer
-            document.getElementById('statsContainer').style.display = 'flex';
-            document.getElementById('controlsContainer').style.display = 'block';
-            document.getElementById('footerContainer').style.display = 'block';
-            
-            // Reinitialize flip card functionality
-            initializeFlipCards();
         }
 
         function escapeHtml(text) {
@@ -180,10 +128,8 @@
         }
 
         function loadCSV(sectionPath) {
-            const container = document.getElementById('flipCardContainer');
-            
-            // Show loading message
-            container.innerHTML = '<div style="text-align: center; color: white; padding: 50px; font-size: 1.2em;">Loading flip cards...</div>';
+            const container = document.getElementById('mcqContainer');
+            container.innerHTML = '<div style="text-align: center; color: white; padding: 50px; font-size: 1.2em;">Loading questions...</div>';
             
             fetch(sectionPath)
                 .then(response => {
@@ -200,162 +146,250 @@
                     const data = parseCSV(csvText);
                     
                     if (data.length === 0) {
-                        throw new Error('No cards found in CSV file');
+                        throw new Error('No questions found in CSV file');
                     }
                     
-                    const sectionName = document.querySelector(`#sectionSelect option[value="${sectionPath}"]`).textContent;
-                    generateFlipCards(data, sectionName);
+                    currentQuestions = data;
+                    currentQuestionIndex = 0;
+                    userAnswers = {};
+                    correctAnswers = {};
+                    wrongAnswers = [];
+                    
+                    // Build correct answers map
+                    data.forEach((q, index) => {
+                        correctAnswers[index] = q.CorrectAnswer ? q.CorrectAnswer.trim().toUpperCase() : '';
+                    });
+                    
+                    displayQuestion(0);
+                    updateScoreboard();
+                    
+                    document.getElementById('scoreboardContainer').style.display = 'block';
+                    document.getElementById('controlsContainer').style.display = 'block';
+                    document.getElementById('footerContainer').style.display = 'block';
+                    document.getElementById('reviewContainer').style.display = 'none';
                 })
                 .catch(error => {
                     console.error('Error loading CSV:', error);
-                    console.error('Attempted to load:', sectionPath);
-                    
-                    let errorMessage = 'Error loading flip cards. ';
-                    if (error.message.includes('HTTP error')) {
-                        errorMessage += `File not found or server error. Please check that the file exists at: ${sectionPath}`;
-                    } else if (error.message.includes('empty')) {
-                        errorMessage += 'The CSV file is empty.';
-                    } else if (error.message.includes('No cards')) {
-                        errorMessage += 'No valid cards found in the CSV file.';
-                    } else {
-                        errorMessage += `Error: ${error.message}`;
-                    }
-                    
                     container.innerHTML = `<div style="text-align: center; color: white; padding: 50px; font-size: 1.2em;">
-                        ${errorMessage}<br><br>
+                        Error loading questions. Please check the file path.<br><br>
                         <small style="opacity: 0.8;">Check the browser console (F12) for more details.</small>
                     </div>`;
-                    
-                    // Hide stats and controls on error
-                    document.getElementById('statsContainer').style.display = 'none';
-                    document.getElementById('controlsContainer').style.display = 'none';
-                    document.getElementById('footerContainer').style.display = 'none';
                 });
+        }
+
+        function displayQuestion(index) {
+            if (index < 0 || index >= currentQuestions.length) return;
+            
+            currentQuestionIndex = index;
+            const question = currentQuestions[index];
+            const container = document.getElementById('mcqContainer');
+            
+            const options = ['A', 'B', 'C', 'D'].map(letter => {
+                const optionText = question[`Option${letter}`] || '';
+                return { letter, text: optionText };
+            }).filter(opt => opt.text);
+            
+            const userAnswer = userAnswers[index];
+            const isAnswered = userAnswer !== undefined;
+            const isCorrect = userAnswer === correctAnswers[index];
+            
+            container.innerHTML = `
+                <div class="mcq-card ${isAnswered && isCorrect ? 'done' : ''}">
+                    <div class="mcq-header">
+                        <div class="mcq-number">Question ${index + 1} of ${currentQuestions.length}</div>
+                        ${isAnswered && isCorrect ? '<div class="mcq-done-badge">✓ Correct</div>' : ''}
+                    </div>
+                    <div class="mcq-question">${escapeHtml(question.Question || question.Front || '')}</div>
+                    <div class="mcq-options">
+                        ${options.map((opt, optIndex) => {
+                            const isSelected = userAnswer === opt.letter;
+                            const isCorrectOption = opt.letter === correctAnswers[index];
+                            let classes = 'mcq-option';
+                            
+                            if (isAnswered) {
+                                if (isCorrectOption) {
+                                    classes += ' correct';
+                                } else if (isSelected && !isCorrectOption) {
+                                    classes += ' incorrect';
+                                } else {
+                                    classes += ' disabled';
+                                }
+                            } else if (isSelected) {
+                                classes += ' selected';
+                            }
+                            
+                            return `
+                                <div class="${classes}" data-option="${opt.letter}" ${isAnswered ? '' : 'onclick="selectOption(\'' + opt.letter + '\')"'}>
+                                    <div class="mcq-option-label">${opt.letter}.</div>
+                                    <div class="mcq-option-text">${escapeHtml(opt.text)}</div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                    ${isAnswered ? `
+                        <div class="mcq-feedback ${isCorrect ? 'correct' : 'incorrect'} show">
+                            ${isCorrect ? 
+                                '<strong>✓ Correct!</strong> ' + escapeHtml(question.Explanation || question.Front || '') :
+                                '<strong>✗ Incorrect.</strong> The correct answer is ' + correctAnswers[index] + '. ' + escapeHtml(question.Explanation || question.Front || '')
+                            }
+                        </div>
+                    ` : ''}
+                    <div class="mcq-actions">
+                        ${!isAnswered ? `
+                            <button class="btn" onclick="submitAnswer()">Submit Answer</button>
+                        ` : ''}
+                        <button class="btn btn-secondary" onclick="previousQuestion()" ${index === 0 ? 'disabled' : ''}>← Previous</button>
+                        <button class="btn" onclick="nextQuestion()" ${index === currentQuestions.length - 1 ? 'disabled' : ''}>Next →</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function selectOption(option) {
+            userAnswers[currentQuestionIndex] = option;
+            displayQuestion(currentQuestionIndex);
+        }
+
+        function submitAnswer() {
+            if (userAnswers[currentQuestionIndex] === undefined) {
+                alert('Please select an answer first!');
+                return;
+            }
+            
+            const isCorrect = userAnswers[currentQuestionIndex] === correctAnswers[currentQuestionIndex];
+            
+            if (!isCorrect) {
+                const question = currentQuestions[currentQuestionIndex];
+                wrongAnswers.push({
+                    index: currentQuestionIndex,
+                    question: question.Question || question.Front || '',
+                    userAnswer: userAnswers[currentQuestionIndex],
+                    correctAnswer: correctAnswers[currentQuestionIndex],
+                    explanation: question.Explanation || question.Front || '',
+                    options: {
+                        A: question.OptionA || '',
+                        B: question.OptionB || '',
+                        C: question.OptionC || '',
+                        D: question.OptionD || ''
+                    }
+                });
+            }
+            
+            displayQuestion(currentQuestionIndex);
+            updateScoreboard();
+        }
+
+        function nextQuestion() {
+            if (currentQuestionIndex < currentQuestions.length - 1) {
+                displayQuestion(currentQuestionIndex + 1);
+            }
+        }
+
+        function previousQuestion() {
+            if (currentQuestionIndex > 0) {
+                displayQuestion(currentQuestionIndex - 1);
+            }
+        }
+
+        function updateScoreboard() {
+            const total = currentQuestions.length;
+            const correct = Object.keys(userAnswers).filter(i => userAnswers[i] === correctAnswers[i]).length;
+            const incorrect = Object.keys(userAnswers).filter(i => userAnswers[i] !== correctAnswers[i]).length;
+            const answered = Object.keys(userAnswers).length;
+            const score = total > 0 ? Math.round((correct / answered) * 100) : 0;
+            
+            document.getElementById('totalQuestions').textContent = total;
+            document.getElementById('correctCount').textContent = correct;
+            document.getElementById('incorrectCount').textContent = incorrect;
+            document.getElementById('scorePercentage').textContent = answered > 0 ? score + '%' : '0%';
+            
+            const progress = total > 0 ? (answered / total) * 100 : 0;
+            const progressFill = document.getElementById('progressFill');
+            progressFill.style.width = progress + '%';
+            progressFill.textContent = Math.round(progress) + '%';
+            
+            if (wrongAnswers.length > 0) {
+                document.getElementById('reviewBtn').style.display = 'inline-block';
+            }
+        }
+
+        function resetQuiz() {
+            if (confirm('Are you sure you want to reset the quiz? All progress will be lost.')) {
+                userAnswers = {};
+                wrongAnswers = [];
+                currentQuestionIndex = 0;
+                displayQuestion(0);
+                updateScoreboard();
+                document.getElementById('reviewContainer').style.display = 'none';
+                document.getElementById('mcqContainer').style.display = 'block';
+            }
+        }
+
+        function showReview() {
+            const reviewContainer = document.getElementById('reviewContainer');
+            const mcqContainer = document.getElementById('mcqContainer');
+            const reviewQuestions = document.getElementById('reviewQuestions');
+            
+            reviewContainer.style.display = 'block';
+            mcqContainer.style.display = 'none';
+            
+            reviewQuestions.innerHTML = wrongAnswers.map((wrong, idx) => {
+                const options = ['A', 'B', 'C', 'D'].map(letter => {
+                    const optionText = wrong.options[`Option${letter}`] || wrong.options[letter] || '';
+                    const isCorrect = letter === wrong.correctAnswer;
+                    const isUserAnswer = letter === wrong.userAnswer;
+                    
+                    let classes = 'mcq-option';
+                    if (isCorrect) classes += ' correct';
+                    if (isUserAnswer && !isCorrect) classes += ' incorrect';
+                    
+                    return `
+                        <div class="${classes}">
+                            <div class="mcq-option-label">${letter}.</div>
+                            <div class="mcq-option-text">${escapeHtml(optionText)}</div>
+                        </div>
+                    `;
+                }).join('');
+                
+                return `
+                    <div class="mcq-card">
+                        <div class="mcq-header">
+                            <div class="mcq-number">Question ${wrong.index + 1}</div>
+                        </div>
+                        <div class="mcq-question">${escapeHtml(wrong.question)}</div>
+                        <div class="mcq-options">
+                            ${options}
+                        </div>
+                        <div class="mcq-feedback incorrect show">
+                            <strong>Your Answer:</strong> ${wrong.userAnswer} (Incorrect)<br>
+                            <strong>Correct Answer:</strong> ${wrong.correctAnswer}<br><br>
+                            <strong>Explanation:</strong> ${escapeHtml(wrong.explanation)}
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
         // Section selector event
         document.getElementById('sectionSelect').addEventListener('change', function(e) {
             if (e.target.value) {
                 loadCSV(e.target.value);
-            } else {
-                document.getElementById('flipCardContainer').innerHTML = 
-                    '<div style="text-align: center; color: white; padding: 50px; font-size: 1.2em;">Please select a section from the dropdown above to load flip cards.</div>';
-                document.getElementById('statsContainer').style.display = 'none';
-                document.getElementById('controlsContainer').style.display = 'none';
-                document.getElementById('footerContainer').style.display = 'none';
             }
         });
 
-        // Check URL parameter for section
-        const urlParams = new URLSearchParams(window.location.search);
-        const sectionParam = urlParams.get('section');
-        if (sectionParam) {
-            document.getElementById('sectionSelect').value = sectionParam;
-            loadCSV(sectionParam);
-        }
+        // Button events
+        document.getElementById('resetBtn').addEventListener('click', resetQuiz);
+        document.getElementById('reviewBtn').addEventListener('click', showReview);
+        document.getElementById('nextBtn').addEventListener('click', nextQuestion);
 
-        // Initialize flip cards (will be called after cards are generated)
-        function initializeFlipCards() {
-            const flipCards = document.querySelectorAll('.flip-card');
-            let currentCardIndex = 0;
-            let flippedCards = new Set();
-
-            // Remove existing event listeners by cloning nodes
-            flipCards.forEach((card, index) => {
-                card.addEventListener('click', function() {
-                    card.classList.toggle('flipped');
-                    if (card.classList.contains('flipped')) {
-                        flippedCards.add(index);
-                    } else {
-                        flippedCards.delete(index);
-                    }
-                    updateStats();
-                });
-            });
-
-            // Update stats function
-            function updateStats() {
-                const totalCards = flipCards.length;
-                const flippedCount = flippedCards.size;
-                const remainingCount = totalCards - flippedCount;
-                
-                document.getElementById('totalCards').textContent = totalCards;
-                document.getElementById('flippedCards').textContent = flippedCount;
-                document.getElementById('remainingCards').textContent = remainingCount;
+        // Keyboard navigation
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                nextQuestion();
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                previousQuestion();
             }
-
-            // Navigation functions
-            function goToNext() {
-                if (flipCards.length === 0) return;
-                flipCards[currentCardIndex].classList.remove('flipped');
-                currentCardIndex = (currentCardIndex + 1) % flipCards.length;
-                flipCards[currentCardIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
-                updateStats();
-            }
-
-            function goToPrevious() {
-                if (flipCards.length === 0) return;
-                flipCards[currentCardIndex].classList.remove('flipped');
-                currentCardIndex = (currentCardIndex - 1 + flipCards.length) % flipCards.length;
-                flipCards[currentCardIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
-                updateStats();
-            }
-
-            function resetAll() {
-                flipCards.forEach(card => card.classList.remove('flipped'));
-                flippedCards.clear();
-                currentCardIndex = 0;
-                updateStats();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-
-            function flipAll() {
-                flipCards.forEach((card, index) => {
-                    card.classList.add('flipped');
-                    flippedCards.add(index);
-                });
-                updateStats();
-            }
-
-            // Button event listeners
-            document.getElementById('nextBtn').onclick = goToNext;
-            document.getElementById('prevBtn').onclick = goToPrevious;
-            document.getElementById('resetBtn').onclick = resetAll;
-            document.getElementById('flipAllBtn').onclick = flipAll;
-
-            // Keyboard navigation (remove old listeners first)
-            const keyboardHandler = function(e) {
-                if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-                    goToNext();
-                } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-                    goToPrevious();
-                } else if (e.key === ' ') {
-                    e.preventDefault();
-                    if (flipCards[currentCardIndex]) {
-                        flipCards[currentCardIndex].classList.toggle('flipped');
-                        const index = currentCardIndex;
-                        if (flipCards[index].classList.contains('flipped')) {
-                            flippedCards.add(index);
-                        } else {
-                            flippedCards.delete(index);
-                        }
-                        updateStats();
-                    }
-                } else if (e.key === 'r' || e.key === 'R') {
-                    resetAll();
-                } else if (e.key === 'f' || e.key === 'F') {
-                    flipAll();
-                }
-            };
-
-            // Remove existing keyboard listener if any
-            document.removeEventListener('keydown', window.currentKeyboardHandler);
-            window.currentKeyboardHandler = keyboardHandler;
-            document.addEventListener('keydown', keyboardHandler);
-
-            // Initial stats update
-            updateStats();
-        }
+        });
     </script>
 </body>
 </html>
