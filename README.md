@@ -18,7 +18,7 @@ Interactive multiple choice question (MCQ) study tool for AWS certification prep
 ## File Structure
 
 ```
-flip-cards/
+AWS-CSAA-Prep-MCQs/
 ├── index.html              # Main entry point - MCQ interface
 ├── mcq-style.css           # Styling for MCQ interface
 ├── README.md              # This file
@@ -42,14 +42,14 @@ flip-cards/
 
 #### Option 1: Python (Recommended)
 ```bash
-cd "flip-cards"
+cd "AWS-CSAA-Prep-MCQs"
 python3 -m http.server 8000
 ```
 Then open: `http://localhost:8000/index.html`
 
 #### Option 2: Node.js (if you have it)
 ```bash
-cd "flip-cards"
+cd "AWS-CSAA-Prep-MCQs"
 npx http-server -p 8000
 ```
 Then open: `http://localhost:8000/index.html`
